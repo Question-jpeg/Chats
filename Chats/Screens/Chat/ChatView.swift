@@ -36,21 +36,17 @@ struct ChatView: View {
         
         guard let prev else {
             guard let next else { return .single }
-            return next.isFromCurrentUser == cur.isFromCurrentUser ? .first : .single
+            return next.fromId == cur.fromId ? .first : .single
         }
         guard let next else {
-            return prev.isFromCurrentUser == cur.isFromCurrentUser ? .last : .single
+            return prev.fromId == cur.fromId ? .last : .single
         }
         
-        if prev.isFromCurrentUser != cur.isFromCurrentUser {
-            return next.isFromCurrentUser != cur.isFromCurrentUser ? .single : .first
+        if prev.fromId != cur.fromId {
+            return next.fromId != cur.fromId ? .single : .first
+        } else {
+            return next.fromId == cur.fromId ? .middle : .last
         }
-        
-        if prev.isFromCurrentUser == cur.isFromCurrentUser {
-            return next.isFromCurrentUser == cur.isFromCurrentUser ? .middle : .last
-        }
-        
-        return .single
     }
     
     var body: some View {
