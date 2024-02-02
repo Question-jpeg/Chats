@@ -22,13 +22,24 @@ extension Image {
     }
     
     static func getPlaceholderImage(size: CGFloat) -> some View {
-            Image(systemName: "person.fill")
-                .resizable()
-                .scaledToFit()
-                .padding(size/4)
-                .background(Color(.systemGray5))
-                .foregroundStyle(.gray)
-                .frame(width: size, height: size)
-                .clipShape(Circle())
+        Image(systemName: "person.fill")
+            .resizable()
+            .scaledToFit()
+            .padding(size/4)
+            .background(Color(.systemGray5))
+            .foregroundStyle(.gray)
+            .frame(width: size, height: size)
+            .clipShape(Circle())
+    }
+    
+    static func getChannelPlaceholderImage(size: CGFloat) -> some View {
+        Image(systemName: "person.3.fill")
+            .resizable()
+            .scaledToFill()
+            .padding(size/3)
+            .background(.blue)
+            .foregroundStyle(.white)
+            .frame(width: size, height: size)
+            .clipShape(Circle())
     }
 }

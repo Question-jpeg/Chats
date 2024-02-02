@@ -10,22 +10,21 @@ import SwiftUI
 struct ChatsView: View {
     @State private var showingNewMessageView = false
     @State private var selectedChatUser: User?
-    @EnvironmentObject var chatsModel: ChatsViewModel
+    @ObservedObject var chatsModel: ChatsViewModel
+    @EnvironmentObject var authModel: AuthViewModel
     
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 0) {
                 ForEach(chatsModel.recentMessages) { recentMessage in
                     NavigationLink {
-                        ChatView(user: recentMessage.user, chatsModel: chatsModel)
+                        ChatView(chatInfo: ChatInfo(
+                            id: recentMessage.user.id,
+                            name: recentMessage.user.username,
+                            image: recentMessage.user.profileImage,
+                            isChannel: false), currentUser: authModel.userSession!)
                     } label: {
-                        VStack(spacing: 0) {
-                            Divider()
-                            ChatCell(user: recentMessage.user, message: recentMessage.message)
-                                .padding(.vertical, 15)
-                                .padding(.leading, 25)
-                            Divider()
-                        }
+                        ChatCell(user: recentMessage.user, message: recentMessage.message)
                     }
                     .tint(.primary)
                 }
@@ -43,11 +42,17 @@ struct ChatsView: View {
             NewMessageView(selectedChatUser: $selectedChatUser)
         }
         .navigationDestination(item: $selectedChatUser) { user in
-            ChatView(user: user, chatsModel: chatsModel)
-        }   
+            ChatView(chatInfo: ChatInfo(
+                id: user.id,
+                name: user.username,
+                image: user.profileImage,
+                isChannel: false), currentUser: authModel.userSession!
+            )
+        }
+        .animation(.default, value: chatsModel.recentMessages)
     }
 }
 
 #Preview {
-    ChatsView()
+    ChatsView(chatsModel: ChatsViewModel())
 }

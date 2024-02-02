@@ -21,10 +21,8 @@ struct InputView: View {
             
             if let message = chatModel.editingMessage {
                 EditMessageView(message: message, cancel: {
-                    withAnimation {
                         chatModel.editingMessage = nil
                         chatModel.messageText = ""
-                    }
                 })
                     .padding(.horizontal)
                     .padding(.bottom, 5)
@@ -71,7 +69,7 @@ struct InputView: View {
         .onReceive(NotificationCenter.default.publisher(for: .didUnfocused), perform: { _ in
             isFocused = false
         })
-        .offset(y: chatModel.isSelectMode ? 100 : 0)
+        .offset(y: chatModel.isSelectMode ? 100 : 0)        
     }
 }
 

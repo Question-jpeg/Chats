@@ -8,12 +8,11 @@
 import SwiftUI
 import CachedAsyncImage
 
-struct ChatCell: View {
-    let user: User
-    let message: Message
+struct ChannelCell: View {
+    let channel: Channel
     
     var messageDateString: String {
-        let date = message.timestamp.dateValue()
+        let date = channel.lastMessage.message.timestamp.dateValue()
         
         if Calendar.current.isDateInToday(date) {
             return date.formatted(date: .omitted, time: .shortened)
@@ -26,23 +25,27 @@ struct ChatCell: View {
         VStack(spacing: 0) {
             Divider()
             HStack(spacing: 10) {
-                CachedAsyncImage(url: URL(string: user.profileImage)!) { image in
-                    image.avatarStyle(size: 48)
-                } placeholder: {
-                    Image.getPlaceholderImage(size: 48)
+                if channel.image != nil {
+                    CachedAsyncImage(url: URL(string: channel.image!)) { image in
+                        image.avatarStyle(size: 48)
+                    } placeholder: {
+                        Image.getChannelPlaceholderImage(size: 48)
+                    }
+                } else {
+                    Image.getChannelPlaceholderImage(size: 48)
                 }
                 
                 VStack(alignment: .leading) {
-                    Text(user.fullName)
+                    Text(channel.name)
                         .fontWeight(.semibold)
                     
                     HStack(spacing: 0) {
                         Group {
-                            Text(message.fromId == FirebaseConstants.currentUserId ? "You: " : "")
+                            Text(channel.lastMessage.user.fullName + ": ")
                                 .foregroundStyle(.secondary)
                                 .font(.system(size: 12))
                             +
-                            Text(message.text)
+                            Text(channel.lastMessage.message.text)
                         }
                         .lineLimit(1)
                         
@@ -62,9 +65,8 @@ struct ChatCell: View {
             Divider()
         }
     }
-    
 }
 
-#Preview {
-    UserCell(user: User(id: "1", email: "test@gmail.com", username: "test", fullName: "Full Test", profileImage: "chickanka", status: .available))
-}
+//#Preview {
+//    ChannelCell(channel: Channel(id: "a", name: "Test channel", uids: [], lastMessage: "Кто то покакал", image: nil))
+//}

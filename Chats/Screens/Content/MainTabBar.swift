@@ -15,11 +15,12 @@ struct MainTabBar: View {
     
     @State private var selection = TabBarItems.Chats
     @StateObject var chatsModel = ChatsViewModel()
+    @StateObject var channelsModel = ChannelsViewModel()
     
     var body: some View {
         NavigationStack {
             TabView(selection: $selection) {
-                ChatsView()
+                ChatsView(chatsModel: chatsModel)
                     .tabItem {
                         Image(systemName: "bubble.left")
                             .environment(\.symbolVariants, selection == .Chats ? .fill : .none)
@@ -27,7 +28,7 @@ struct MainTabBar: View {
                     .tag(TabBarItems.Chats)
                     
                 
-                ChannelsView()
+                ChannelsView(channelsModel: channelsModel)
                     .tabItem {
                         Image(systemName: "bubble.left.and.bubble.right")
                             .environment(\.symbolVariants, selection == .Channels ? .fill : .none)
@@ -43,10 +44,14 @@ struct MainTabBar: View {
             }
             .navigationTitle(selection.rawValue)
         }
+        .onAppear {
+            chatsModel.onAppear()
+            channelsModel.onAppear()
+        }
         .onDisappear {
             chatsModel.onDisappear()
+            channelsModel.onDisappear()
         }
-        .environmentObject(chatsModel)
     }
 }
 

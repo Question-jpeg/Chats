@@ -10,6 +10,18 @@ import Foundation
 @MainActor
 class NewMessageViewModel: ObservableObject {
     @Published var users = [User]()
+    @Published var searchText = ""
+    
+    var filteredUsers: [User] {
+        let users = users.filter { user in
+            user.id != FirebaseConstants.currentUserId
+        }
+        if searchText.isEmpty { return users }
+        return users.filter { user in
+            user.username.localizedCaseInsensitiveContains(searchText) ||
+            user.fullName.localizedCaseInsensitiveContains(searchText)
+        }
+    }
     
     init() {
         fetchUsers()

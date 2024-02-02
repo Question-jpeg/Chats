@@ -27,7 +27,7 @@ extension Message {
     }
 }
 
-struct RecentMessage: Identifiable {
+struct RecentMessage: Identifiable, Equatable {
     let message: Message
     let user: User
     
@@ -36,12 +36,17 @@ struct RecentMessage: Identifiable {
     }
 }
 
+struct UserMessage: Codable, Equatable {
+    let message: Message
+    let user: User
+}
+
 struct ListenerRecentMessage {
     let type: DocumentChangeType
     let recentMessage: RecentMessage
 }
 
-struct ListenerMessage {
+struct ListenerUserMessage {
     let type: DocumentChangeType
-    let message: Message
+    let message: UserMessage
 }

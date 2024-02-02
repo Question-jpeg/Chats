@@ -33,6 +33,7 @@ struct SearchBar: View {
                 .padding(.leading)
             }
         }
+        .animation(.default, value: isFocused)
     }
 }
 

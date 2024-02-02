@@ -9,13 +9,15 @@ import SwiftUI
 import CachedAsyncImage
 
 struct ChatView: View {
-    let user: User
+    let chatInfo: ChatInfo
     
     @StateObject var viewModel: ChatViewModel
     
-    init(user: User, chatsModel: ChatsViewModel) {
-        self.user = user
-        _viewModel = StateObject(wrappedValue: ChatViewModel(user: user, chatsModel: chatsModel))
+    init(chatInfo: ChatInfo, currentUser: User) {
+        self.chatInfo = chatInfo
+        _viewModel = StateObject(wrappedValue: ChatViewModel(
+            chatIdentifier: ChatIdentifier(id: chatInfo.id, isChannel: chatInfo.isChannel), currentUser: currentUser)
+        )
     }
     
     func sendMessage() {
@@ -28,9 +30,9 @@ struct ChatView: View {
     
     func getPosition(for index: Int) -> Position {
         let messages = viewModel.messages
-        let prev = messages[safe: index-1]
-        let cur = messages[index]
-        let next = messages[safe: index+1]
+        let prev = messages[safe: index-1]?.message
+        let cur = messages[index].message
+        let next = messages[safe: index+1]?.message
         
         guard let prev else {
             guard let next else { return .single }
@@ -61,7 +63,8 @@ struct ChatView: View {
                         if index == viewModel.messages.count {
                             EmptySpacer(height: 10)
                         } else {
-                            let message = viewModel.messages[index]
+                            let message = viewModel.messages[index].message
+                            let author = viewModel.messages[index].user
                             let position = getPosition(for: index)
                             HStack {
                                 if viewModel.isSelectMode {
@@ -70,7 +73,7 @@ struct ChatView: View {
                                         .foregroundStyle(.blue)
                                         .font(.title2)
                                 }
-                                MessageView(message: message, position: position)
+                                MessageView(message: message, author: author, position: position)
                                     .background(message.id == viewModel.editingMessage?.id ? .blue.opacity(0.2) : .clear)
                                     .padding(.top, (position == .first || position == .single) ? 5 : 0)
                                     .padding(.bottom, (position == .last || position == .single) ? 5 : 0)
@@ -122,16 +125,32 @@ struct ChatView: View {
         .toolbar() {
             ToolbarItem(placement: .topBarLeading) {
                 HStack(spacing: 10) {
-                    CachedAsyncImage(url: URL(string: user.profileImage)!) { image in
-                        image.avatarStyle(size: 40)
-                    } placeholder: {
-                        Image.getPlaceholderImage(size: 40)
+                    if chatInfo.image != nil {
+                        CachedAsyncImage(url: URL(string: chatInfo.image!)) { image in
+                            image.avatarStyle(size: 40)
+                        } placeholder: {
+                            if chatInfo.isChannel {
+                                Image.getChannelPlaceholderImage(size: 40)
+                            } else {
+                                Image.getPlaceholderImage(size: 40)
+                            }
+                        }
+                    } else {
+                        Image.getChannelPlaceholderImage(size: 40)
                     }
                     
-                    Text(user.username)
+                    Text(chatInfo.name)
                         .font(.system(size: 16, weight: .semibold))
                 }
                 .padding(.leading, 20)
+            }
+            
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink {
+                    Text("Test")
+                } label: {
+                    Text("Go")
+                }
             }
             
             if viewModel.isSelectMode {
@@ -149,7 +168,9 @@ struct ChatView: View {
                 }
             }
         }
+        .animation(.default, value: viewModel.changes)
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear { viewModel.onAppear() }
         .onDisappear { viewModel.onDisappear() }
         .environmentObject(viewModel)
     }

@@ -17,6 +17,7 @@ struct FirebaseConstants {
     
     static let usersCollection = firestore.collection("users")
     static let messagesCollection = firestore.collection("messages")
+    static let channelsCollection = firestore.collection("channels")
     
     static var currentUserId: String? {
         auth.currentUser?.uid
@@ -145,6 +146,147 @@ extension FirebaseConstants {
     }
 }
 
+extension FirebaseConstants {
+    static func createChannel(name: String, uids: [String], image: UIImage?, currentUser: User) async throws {
+        let channelDocRef = FirebaseConstants.getChannelDocRef()
+        var imageUrl: String? = nil
+        if let image {
+            imageUrl = try await FirebaseConstants.uploadImage(id: channelDocRef.documentID, image: image)
+        }
+        let message = Message(
+            id: UUID().uuidString,
+            fromId: currentUser.id,
+            toId: channelDocRef.documentID,
+            read: false,
+            isEdited: false,
+            text: "created the channel",
+            timestamp: Timestamp(date: Date())
+        )
+        let data = try FirebaseConstants.encode(
+            Channel(
+                id: channelDocRef.documentID,
+                name: name,
+                uids: uids,
+                lastMessage: UserMessage(message: message, user: currentUser),
+                image: imageUrl
+            )
+        )
+        
+        try await channelDocRef.setData(data)
+    }
+    
+    static func sendChannelMessage(messageText: String, channelId: String, currentUser: User) async throws {
+        let messageDocRef = getChannelMessageDocRef(channelId: channelId)
+        let channelDocRef = getChannelDocRef(documentId: channelId)
+        let message = Message(
+            id: messageDocRef.documentID,
+            fromId: currentUser.id,
+            toId: channelId,
+            read: false,
+            isEdited: false,
+            text: messageText,
+            timestamp: Timestamp(date: Date())
+        )
+        let data = try encode(message)
+        let lastMessageUpdateData = try encode(LastMessageUpdateData(lastMessage: UserMessage(message: message, user: currentUser)))
+        
+        let batch = firestore.batch()
+        
+        batch.setData(data, forDocument: messageDocRef)
+        batch.updateData(lastMessageUpdateData, forDocument: channelDocRef)
+        
+        try await batch.commit()
+    }
+    
+    static func editChannelMessage(_ messageText: String, message: Message, lastMessageId: String, currentUser: User) async throws {
+        guard messageText != message.text else { return }
+        let channelDocRef = getChannelDocRef(documentId: message.toId)
+        let messageDocRef = getChannelMessageDocRef(channelId: message.toId, documentId: message.id)
+        let data = try encode(Message(
+            id: message.id,
+            fromId: message.fromId,
+            toId: message.toId,
+            read: message.read,
+            isEdited: true,
+            text: messageText,
+            timestamp: message.timestamp)
+        )
+        let batch = firestore.batch()
+        
+        if lastMessageId == message.id {
+            let lastMessageUpdateData = try encode(LastMessageUpdateData(lastMessage: UserMessage(message: message, user: currentUser)))
+            batch.updateData(lastMessageUpdateData, forDocument: channelDocRef)
+        }
+        
+        batch.setData(data, forDocument: messageDocRef)
+
+        try await batch.commit()
+    }
+    
+    static func deleteChannelMessage(message: Message, lastMessageId: String, newLastMessage: Message?, currentUser: User) async throws {
+        let batch = firestore.batch()
+        let channelDocRef = getChannelDocRef(documentId: message.toId)
+        let messageDocRef = getChannelMessageDocRef(channelId: message.toId, documentId: message.id)
+        
+        if lastMessageId == message.id {
+            if newLastMessage == nil {
+                let newLastMessage = Message(
+                    id: UUID().uuidString,
+                    fromId: currentUser.id,
+                    toId: channelDocRef.documentID,
+                    read: false,
+                    isEdited: false,
+                    text: "Deleted last messages",
+                    timestamp: Timestamp(date: Date())
+                )
+                let lastMessageUpdateData = try encode(LastMessageUpdateData(lastMessage: UserMessage(message: newLastMessage, user: currentUser)))
+                batch.updateData(lastMessageUpdateData, forDocument: channelDocRef)
+            } else {
+                let author = try await getUserDocRef(uuid: newLastMessage!.fromId).getDocument(as: User.self)
+                let lastMessageUpdateData = try encode(LastMessageUpdateData(lastMessage: UserMessage(message: newLastMessage!, user: author)))
+                batch.updateData(lastMessageUpdateData, forDocument: channelDocRef)
+            }
+        }
+        
+        batch.deleteDocument(messageDocRef)
+        
+        try await batch.commit()
+    }
+    
+    static func deleteChannelMessages(messages: [Message], lastMessageId: String, newLastMessage: Message?, currentUser: User) async throws {
+        guard messages.count > 0 else { return }
+        
+        let channelDocRef = getChannelDocRef(documentId: messages[0].toId)
+        
+        let batch = firestore.batch()
+        
+        if messages.contains(where: { $0.id == lastMessageId }) {
+            if newLastMessage == nil {
+                let newLastMessage = Message(
+                    id: UUID().uuidString,
+                    fromId: currentUser.id,
+                    toId: channelDocRef.documentID,
+                    read: false,
+                    isEdited: false,
+                    text: "Deleted last messages",
+                    timestamp: Timestamp(date: Date())
+                )
+                let lastMessageUpdateData = try encode(LastMessageUpdateData(lastMessage: UserMessage(message: newLastMessage, user: currentUser)))
+                batch.updateData(lastMessageUpdateData, forDocument: channelDocRef)
+            } else {
+                let author = try await getUserDocRef(uuid: newLastMessage!.fromId).getDocument(as: User.self)
+                let lastMessageUpdateData = try encode(LastMessageUpdateData(lastMessage: UserMessage(message: newLastMessage!, user: author)))
+                batch.updateData(lastMessageUpdateData, forDocument: channelDocRef)
+            }
+        }
+        
+        messages.forEach { message in
+            batch.deleteDocument(getChannelMessageDocRef(channelId: message.toId, documentId: message.id))
+        }
+        
+        try await batch.commit()
+    }
+}
 
 extension FirebaseConstants {
     static func getUserDocRef(uuid: String) -> DocumentReference {
@@ -183,5 +325,22 @@ extension FirebaseConstants {
         
         if let documentId { return chatCollection.document(documentId) }
         return chatCollection.document()
+    }
+}
+
+extension FirebaseConstants {
+    static func getChannelDocRef(documentId: String? = nil) -> DocumentReference {
+        if let documentId { return channelsCollection.document(documentId) }
+        return channelsCollection.document()
+    }
+    
+    static func getChannelMessagesCollection(channelId: String) -> CollectionReference {
+        channelsCollection.document(channelId).collection("messages")
+    }
+    
+    static func getChannelMessageDocRef(channelId: String, documentId: String? = nil) -> DocumentReference {
+        let messages = getChannelMessagesCollection(channelId: channelId)
+        if let documentId { return messages.document(documentId) }
+        return messages.document()
     }
 }

@@ -6,6 +6,8 @@
 //
 
 import SwiftUI
+import Firebase
+import CachedAsyncImage
 
 struct MessageView: View {
     @Environment(\.colorScheme) var colorScheme
@@ -13,6 +15,7 @@ struct MessageView: View {
     @State private var isTruncated: Bool? = nil
     
     let message: Message
+    let author: User
     let position: Position
     
     @ViewBuilder var messageTextView: some View {
@@ -30,24 +33,43 @@ struct MessageView: View {
     }
     
     var body: some View {
-        HStack {
+        HStack(alignment: .bottom, spacing: 0) {
             if message.isFromCurrentUser {
                 Spacer()
             }
             
-            HStack(alignment: .bottom, spacing: 5) {
-                if isTruncated == nil {
-                    messageTextView
-                        .opacity(0)
-                        .background(GeometryReader { geo in
-                            Color.clear.onAppear { isTruncated = geo.size.width > .screenWidth/2 }
-                        })
-                } else if isTruncated! {
-                    VStack(alignment: .trailing) {
-                        messageView
+            if !message.isFromCurrentUser && chatModel.chatIdentifier.isChannel {
+                if position == .single || position == .last {
+                    CachedAsyncImage(url: URL(string: author.profileImage)) { image in
+                        image.avatarStyle(size: 30)
+                    } placeholder: {
+                        Image.getPlaceholderImage(size: 30)
                     }
                 } else {
-                    messageView
+                    Color.clear.frame(width: 30, height: 30)
+                }
+            }
+            
+            VStack(alignment: .leading, spacing: 0) {
+                if chatModel.chatIdentifier.isChannel && !message.isFromCurrentUser && (position == .single || position == .first)  {
+                    Text(author.fullName)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.blue)
+                }
+                HStack(alignment: .bottom, spacing: 5) {
+                    if isTruncated == nil {
+                        messageTextView
+                            .opacity(0)
+                            .background(GeometryReader { geo in
+                                Color.clear.onAppear { isTruncated = geo.size.width > .screenWidth/2 }
+                            })
+                    } else if isTruncated! {
+                        VStack(alignment: .trailing) {
+                            messageView
+                        }
+                    } else {
+                        messageView
+                    }
                 }
             }
             .padding(.horizontal, 15)
@@ -60,9 +82,7 @@ struct MessageView: View {
                 if !chatModel.isSelectMode {
                     if message.isFromCurrentUser {
                         Button {
-                            withAnimation {
-                                chatModel.editingMessage = message
-                            }                            
+                            chatModel.editingMessage = message
                         } label: {
                             Label("Edit", systemImage: "pencil")
                         }
@@ -83,21 +103,30 @@ struct MessageView: View {
                     }
                 }
             }
-            .padding(.horizontal)
+            .padding(.leading, 10)
             .padding(message.isFromCurrentUser ? .leading : .trailing, 30)
             
             if !message.isFromCurrentUser {
                 Spacer()
             }
         }
-        
+        .padding(.horizontal, 10)
     }
 }
 
-#Preview {
-    VStack(spacing: 0) {
-        //        ForEach(ChatViewModel.mockMessages) { message in
-        //            MessageView(message: message, position: .first)
-        //        }
-    }
-}
+//#Preview {
+//    let curUser = User(id: "", email: "", username: "", fullName: "Full name", profileImage: "https://imgupscaler.com/images/samples/animal-before.webp", status: .available)
+//    
+//    let message = Message(
+//        id: "",
+//        fromId: "",
+//        toId: "",
+//        read: false,
+//        isEdited: false,
+//        text: "Test message",
+//        timestamp: Timestamp(date: Date())
+//    )
+//    
+//    return MessageView(message: message, position: .single)
+//        .environmentObject(ChatViewModel(chatIdentifier: ChatIdentifier(id: "", isChannel: true), currentUser: curUser))
+//}
